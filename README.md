@@ -33,3 +33,9 @@ Urban water utilities often detect leaks and inefficiencies only after large vol
 ## Status
 
 This project is under active development as part of HackXios.
+
+## To run project 
+
+cd backend && uvicorn app.main:app --reload 
+
+cd frontend && npm run dev
