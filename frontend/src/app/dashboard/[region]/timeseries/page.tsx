@@ -1,9 +1,11 @@
 import TimeSeriesClient from "./TimeSeriesClient";
 
-export default function TimeSeriesPage({
-  params,
-}: {
-  params: { region: string };
-}) {
-  return <TimeSeriesClient region={params.region} />;
+interface Props {
+  params: Promise<{ region: string }>;
+}
+
+export default async function TimeSeriesPage({ params }: Props) {
+  const { region } = await params; // ✅ SAME FIX
+
+  return <TimeSeriesClient region={region} />;
 }

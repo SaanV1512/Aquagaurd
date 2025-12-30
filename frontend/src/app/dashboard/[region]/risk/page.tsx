@@ -1,9 +1,11 @@
 import RiskClient from "./RiskClient";
 
-export default function RiskPage({
-  params,
-}: {
-  params: { region: string };
-}) {
-  return <RiskClient region={params.region} />;
+interface Props {
+  params: Promise<{ region: string }>;
+}
+
+export default async function RiskPage({ params }: Props) {
+  const { region } = await params; // ✅ unwrap the promise
+
+  return <RiskClient region={region} />;
 }

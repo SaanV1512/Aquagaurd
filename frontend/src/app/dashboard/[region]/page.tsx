@@ -1,27 +1,23 @@
 import Link from "next/link";
 
-export default function RegionHome({
-  params,
-}: {
-  params: { region: string };
-}) {
-  const { region } = params;
+interface Props {
+  params: Promise<{ region: string }>;
+}
+
+export default async function RegionHome({ params }: Props) {
+  const { region } = await params; // ✅ THIS is the fix
 
   return (
     <div className="p-8 text-white">
       <h1 className="text-2xl font-bold">Region: {region}</h1>
 
       <div className="mt-6 space-y-3">
-        <Link href={`/dashboard/${region}/timeseries`} className="block text-cyan-400 hover:underline">
-          Actual vs Predicted
+        <Link href={`/dashboard/${region}/timeseries`} className="block text-cyan-400">
+          Timeseries
         </Link>
 
-        <Link href={`/dashboard/${region}/residuals`} className="block text-cyan-400 hover:underline">
-          Residuals Over Time
-        </Link>
-
-        <Link href={`/dashboard/${region}/risk`} className="block text-cyan-400 hover:underline">
-          Risk Score Over Time
+        <Link href={`/dashboard/${region}/risk`} className="block text-cyan-400">
+          Risk Score
         </Link>
       </div>
     </div>
