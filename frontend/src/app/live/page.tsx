@@ -17,6 +17,18 @@ interface LiveRiskData {
     };
 }
 
+interface LiveRanking {
+    region: string;
+    current_risk: number;
+    recent_peak_risk: number;
+    risk_level: "Low" | "Medium" | "High";
+    persistence_days: number;
+    priority_score: number;
+    inspection_priority: number;
+    risk_status: string;
+    last_updated: string;
+}
+
 interface ElevatedRisk {
     region: string;
     type: string;
@@ -31,6 +43,13 @@ const getRiskColor = (score: number) => {
     if (score >= 50) return "text-amber-400";
     if (score >= 30) return "text-yellow-400";
     return "text-green-400";
+};
+
+const getRiskBgColor = (score: number) => {
+    if (score >= 70) return "bg-red-400";
+    if (score >= 50) return "bg-amber-400";
+    if (score >= 30) return "bg-yellow-400";
+    return "bg-green-400";
 };
 
 const getRiskLevel = (score: number) => {
@@ -48,8 +67,15 @@ const getRiskStatusColor = (status: string) => {
     }
 };
 
+const getPriorityColor = (priority: number) => {
+    if (priority <= 2) return "text-red-400 bg-red-500/20";
+    if (priority <= 4) return "text-amber-400 bg-amber-500/20";
+    return "text-green-400 bg-green-500/20";
+};
+
 export default function LiveRiskMonitoring() {
     const [liveData, setLiveData] = useState<LiveRiskData[]>([]);
+    const [liveRanking, setLiveRanking] = useState<LiveRanking[]>([]);
     const [elevatedRisks, setElevatedRisks] = useState<ElevatedRisk[]>([]);
     const [historicalData, setHistoricalData] = useState<{ [key: string]: LiveRiskData[] }>({});
     const [loading, setLoading] = useState(true);
@@ -62,14 +88,19 @@ export default function LiveRiskMonitoring() {
             const liveData = await liveResponse.json();
             setLiveData(liveData);
 
-            // Store historical data for charts (keep last 20 points per region)
+            // Fetch live ranking
+            const rankingResponse = await fetch("http://127.0.0.1:8000/live/ranking");
+            const rankingData = await rankingResponse.json();
+            setLiveRanking(rankingData);
+
+            // Store historical data for charts (keep last 30 points per region)
             setHistoricalData(prev => {
                 const updated = { ...prev };
                 liveData.forEach((data: LiveRiskData) => {
                     if (!updated[data.region]) updated[data.region] = [];
                     updated[data.region].push(data);
-                    if (updated[data.region].length > 20) {
-                        updated[data.region] = updated[data.region].slice(-20);
+                    if (updated[data.region].length > 30) {
+                        updated[data.region] = updated[data.region].slice(-30);
                     }
                 });
                 return updated;
@@ -113,9 +144,10 @@ export default function LiveRiskMonitoring() {
         );
     }
 
-    const highRiskRegions = liveData.filter(d => d.risk_score >= 70).length;
-    const mediumRiskRegions = liveData.filter(d => d.risk_score >= 50 && d.risk_score < 70).length;
+    const highRiskRegions = liveRanking.filter(d => d.current_risk >= 70).length;
+    const mediumRiskRegions = liveRanking.filter(d => d.current_risk >= 50 && d.current_risk < 70).length;
     const totalConsumption = liveData.reduce((sum, d) => sum + d.consumption, 0);
+    const avgRiskScore = liveData.reduce((sum, d) => sum + d.risk_score, 0) / liveData.length;
 
     return (
         <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
@@ -162,7 +194,7 @@ export default function LiveRiskMonitoring() {
                     </div>
 
                     {/* System Overview Cards */}
-                    <div className="grid gap-6 md:grid-cols-4 mb-12">
+                    <div className="grid gap-6 md:grid-cols-5 mb-12">
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
                             <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
                                 High Risk Regions
@@ -171,87 +203,194 @@ export default function LiveRiskMonitoring() {
                                 {highRiskRegions}
                             </div>
                             <div className="text-xs text-slate-400 mt-1">
-                                Require immediate inspection
+                                Immediate inspection
                             </div>
                         </div>
 
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
                             <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
-                                Medium Risk Regions
+                                Medium Risk
                             </div>
                             <div className="text-3xl font-semibold text-amber-400">
                                 {mediumRiskRegions}
                             </div>
                             <div className="text-xs text-slate-400 mt-1">
-                                Enhanced monitoring needed
+                                Enhanced monitoring
                             </div>
                         </div>
 
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
                             <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
-                                Total Consumption
+                                Current Daily Rate
                             </div>
                             <div className="text-3xl font-semibold text-cyan-400">
                                 {totalConsumption.toLocaleString()}
                             </div>
                             <div className="text-xs text-slate-400 mt-1">
-                                Liters per day (current)
+                                Liters/day (total)
                             </div>
                         </div>
 
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
                             <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
-                                Elevated Risk Periods
+                                Avg Risk Score
+                            </div>
+                            <div className={`text-3xl font-semibold ${getRiskColor(avgRiskScore)}`}>
+                                {avgRiskScore.toFixed(1)}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-1">
+                                System-wide average
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                            <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
+                                Active Alerts
                             </div>
                             <div className="text-3xl font-semibold text-fuchsia-400">
                                 {elevatedRisks.length}
                             </div>
                             <div className="text-xs text-slate-400 mt-1">
-                                Active monitoring required
+                                Elevated risk periods
                             </div>
                         </div>
                     </div>
 
-                    {/* Live Risk Monitoring Grid */}
+                    {/* Priority Ranking Table */}
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur mb-12">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-semibold">Inspection Priority Ranking</h2>
+                            <div className="text-sm text-slate-400">Sorted by priority score • Live updates</div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-white/10">
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Priority</th>
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Region</th>
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Risk Level</th>
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Current Risk</th>
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Peak Risk</th>
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Persistence</th>
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Priority Score</th>
+                                        <th className="text-left py-4 px-4 text-sm font-medium text-slate-300">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {liveRanking.map((region, index) => (
+                                        <tr key={region.region} className="border-b border-white/5 hover:bg-white/5 transition">
+                                            <td className="py-4 px-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getPriorityColor(region.inspection_priority)}`}>
+                                                    {region.inspection_priority}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <Link href={`/dashboard/${region.region}`} className="font-semibold hover:text-cyan-400 transition">
+                                                    {region.region}
+                                                </Link>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${region.risk_level === "High" ? "bg-red-500/20 text-red-400" :
+                                                    region.risk_level === "Medium" ? "bg-amber-500/20 text-amber-400" :
+                                                        "bg-green-500/20 text-green-400"
+                                                    }`}>
+                                                    {region.risk_level}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className={`text-lg font-semibold ${getRiskColor(region.current_risk)}`}>
+                                                    {region.current_risk.toFixed(1)}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className={`text-lg font-semibold ${getRiskColor(region.recent_peak_risk)}`}>
+                                                    {region.recent_peak_risk.toFixed(1)}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className="text-slate-300">
+                                                    {region.persistence_days} day{region.persistence_days !== 1 ? 's' : ''}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className="text-lg font-semibold text-fuchsia-400">
+                                                    {region.priority_score.toFixed(1)}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getRiskStatusColor(region.risk_status)}`}>
+                                                    {region.risk_status === "normal" ? "Normal" :
+                                                        region.risk_status === "elevated" ? "⚠️ Elevated" : "🆕 New Alert"}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Live Region Monitoring Grid */}
                     <div className="grid gap-6 lg:grid-cols-2 mb-12">
-                        {liveData.map((data, index) => {
-                            const regionHistory = historicalData[data.region] || [];
-                            const maxConsumption = Math.max(...regionHistory.map(d => d.consumption), data.consumption);
-                            const maxRisk = Math.max(...regionHistory.map(d => d.risk_score), data.risk_score);
+                        {liveRanking.slice(0, 4).map((regionRank, index) => {
+                            const liveRegionData = liveData.find(d => d.region === regionRank.region);
+                            if (!liveRegionData) return null;
+
+                            const regionHistory = historicalData[regionRank.region] || [];
+                            const maxConsumption = Math.max(...regionHistory.map(d => d.consumption), liveRegionData.consumption);
+                            const maxRisk = Math.max(...regionHistory.map(d => d.risk_score), liveRegionData.risk_score);
 
                             return (
-                                <div key={index} className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
+                                <div key={regionRank.region} className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
                                     <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-2xl font-semibold">{data.region} Region</h3>
-                                        <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getRiskStatusColor(data.risk_status)}`}>
-                                            {data.risk_status === "normal" ? "Normal" :
-                                                data.risk_status === "elevated" ? "⚠️ Elevated Risk" : "🆕 New Risk"}
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getPriorityColor(regionRank.inspection_priority)}`}>
+                                                {regionRank.inspection_priority}
+                                            </div>
+                                            <h3 className="text-2xl font-semibold">{regionRank.region} Region</h3>
+                                        </div>
+                                        <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getRiskStatusColor(liveRegionData.risk_status)}`}>
+                                            {liveRegionData.risk_status === "normal" ? "Normal" :
+                                                liveRegionData.risk_status === "elevated" ? "⚠️ Elevated Risk" : "🆕 New Risk"}
                                         </div>
                                     </div>
 
                                     {/* Current Metrics */}
-                                    <div className="grid grid-cols-2 gap-4 mb-6">
+                                    <div className="grid grid-cols-3 gap-4 mb-6">
                                         <div>
                                             <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
                                                 Risk Score
                                             </div>
-                                            <div className={`text-3xl font-semibold ${getRiskColor(data.risk_score)}`}>
-                                                {data.risk_score}
+                                            <div className={`text-3xl font-semibold ${getRiskColor(liveRegionData.risk_score)}`}>
+                                                {liveRegionData.risk_score.toFixed(1)}
                                             </div>
                                             <div className="text-xs text-slate-400">
-                                                {getRiskLevel(data.risk_score)}
+                                                {getRiskLevel(liveRegionData.risk_score)}
                                             </div>
                                         </div>
 
                                         <div>
                                             <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
-                                                Consumption
+                                                Daily Consumption
                                             </div>
                                             <div className="text-3xl font-semibold text-cyan-400">
-                                                {data.consumption.toLocaleString()}
+                                                {liveRegionData.consumption.toLocaleString()}
                                             </div>
                                             <div className="text-xs text-slate-400">
                                                 Liters/day
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
+                                                Priority
+                                            </div>
+                                            <div className="text-3xl font-semibold text-fuchsia-400">
+                                                {regionRank.priority_score.toFixed(1)}
+                                            </div>
+                                            <div className="text-xs text-slate-400">
+                                                Score
                                             </div>
                                         </div>
                                     </div>
@@ -261,36 +400,33 @@ export default function LiveRiskMonitoring() {
                                         {/* Risk Score Trend */}
                                         <div>
                                             <div className="text-sm font-medium text-slate-300 mb-2">Risk Score Trend (Last 20 readings)</div>
-                                            <div className="flex items-end gap-1 h-16">
-                                                {regionHistory.slice(-15).map((point, i) => {
+                                            <div className="flex items-end gap-1 h-16 bg-slate-800/50 rounded-lg p-2">
+                                                {regionHistory.slice(-20).map((point, i) => {
                                                     const height = maxRisk > 0 ? (point.risk_score / maxRisk) * 100 : 0;
                                                     return (
                                                         <div
                                                             key={i}
-                                                            className={`flex-1 rounded-t ${point.risk_score >= 70 ? "bg-red-400" :
-                                                                    point.risk_score >= 50 ? "bg-amber-400" :
-                                                                        point.risk_score >= 30 ? "bg-yellow-400" : "bg-green-400"
-                                                                }`}
+                                                            className={`flex-1 rounded-t ${getRiskBgColor(point.risk_score)}`}
                                                             style={{ height: `${Math.max(height, 5)}%` }}
-                                                            title={`Risk: ${point.risk_score} at ${new Date(point.timestamp).toLocaleTimeString()}`}
+                                                            title={`Risk: ${point.risk_score.toFixed(1)} at ${new Date(point.timestamp).toLocaleTimeString()}`}
                                                         ></div>
                                                     );
                                                 })}
                                             </div>
                                         </div>
 
-                                        {/* Consumption Trend */}
+                                        {/* Flow Rate Trend */}
                                         <div>
-                                            <div className="text-sm font-medium text-slate-300 mb-2">Consumption Trend</div>
-                                            <div className="flex items-end gap-1 h-12">
-                                                {regionHistory.slice(-15).map((point, i) => {
+                                            <div className="text-sm font-medium text-slate-300 mb-2">Daily Consumption Trend</div>
+                                            <div className="flex items-end gap-1 h-12 bg-slate-800/50 rounded-lg p-2">
+                                                {regionHistory.slice(-20).map((point, i) => {
                                                     const height = maxConsumption > 0 ? (point.consumption / maxConsumption) * 100 : 0;
                                                     return (
                                                         <div
                                                             key={i}
                                                             className="flex-1 bg-cyan-400 rounded-t"
                                                             style={{ height: `${Math.max(height, 5)}%` }}
-                                                            title={`Consumption: ${point.consumption.toLocaleString()}L at ${new Date(point.timestamp).toLocaleTimeString()}`}
+                                                            title={`Consumption: ${point.consumption.toLocaleString()}L/day at ${new Date(point.timestamp).toLocaleTimeString()}`}
                                                         ></div>
                                                     );
                                                 })}
@@ -299,15 +435,24 @@ export default function LiveRiskMonitoring() {
                                     </div>
 
                                     {/* Risk Information */}
-                                    {data.risk_status !== "normal" && data.risk_info && (
+                                    {liveRegionData.risk_status !== "normal" && liveRegionData.risk_info && (
                                         <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
                                             <div className="text-sm font-medium text-amber-400 mb-2">Risk Analysis</div>
                                             <div className="text-xs text-slate-300 space-y-1">
-                                                {data.risk_info.type && <div>Pattern: {data.risk_info.type}</div>}
-                                                {data.risk_info.severity && <div>Severity: {data.risk_info.severity}</div>}
-                                                {data.risk_info.start_time && (
-                                                    <div>Started: {new Date(data.risk_info.start_time).toLocaleString()}</div>
+                                                {liveRegionData.risk_info.type && <div>Pattern: {liveRegionData.risk_info.type}</div>}
+                                                {liveRegionData.risk_info.severity && <div>Severity: {liveRegionData.risk_info.severity}</div>}
+                                                {liveRegionData.risk_info.start_time && (
+                                                    <div>Started: {new Date(liveRegionData.risk_info.start_time).toLocaleString()}</div>
                                                 )}
+                                                <div className="mt-2 text-amber-300">
+                                                    <strong>Why this region is ranked #{regionRank.inspection_priority}:</strong>
+                                                    <ul className="mt-1 text-xs space-y-1">
+                                                        {regionRank.current_risk >= 70 && <li>• High current risk score ({regionRank.current_risk.toFixed(1)})</li>}
+                                                        {regionRank.persistence_days > 0 && <li>• Sustained elevated consumption ({regionRank.persistence_days} days)</li>}
+                                                        {liveRegionData.risk_status === "new_elevation" && <li>• New risk elevation detected</li>}
+                                                        {regionRank.recent_peak_risk > regionRank.current_risk + 10 && <li>• Recent high peak risk ({regionRank.recent_peak_risk.toFixed(1)})</li>}
+                                                    </ul>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -316,44 +461,13 @@ export default function LiveRiskMonitoring() {
                         })}
                     </div>
 
-                    {/* Elevated Risk Summary */}
-                    {elevatedRisks.length > 0 && (
-                        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-8 backdrop-blur mb-12">
-                            <div className="flex items-center gap-3 mb-6">
-                                <span className="text-amber-400 text-2xl">⚠️</span>
-                                <h3 className="text-xl font-semibold text-amber-400">
-                                    {elevatedRisks.length} Region{elevatedRisks.length > 1 ? 's' : ''} Require Enhanced Monitoring
-                                </h3>
-                            </div>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {elevatedRisks.map((risk, index) => (
-                                    <div key={index} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="font-semibold text-white">{risk.region} Region</span>
-                                            <span className={`text-sm font-medium ${risk.severity === "High" ? "text-red-400" :
-                                                    risk.severity === "Medium" ? "text-amber-400" : "text-yellow-400"
-                                                }`}>
-                                                {risk.severity}
-                                            </span>
-                                        </div>
-                                        <div className="text-sm text-slate-300 space-y-1">
-                                            <div>Pattern: {risk.type}</div>
-                                            <div>Started: {new Date(risk.start_time).toLocaleString()}</div>
-                                            <div>Est. Duration: {risk.pattern} pattern</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {/* System Status */}
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
                         <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-6">
                             Monitoring System Status
                         </div>
 
-                        <div className="grid gap-6 md:grid-cols-3">
+                        <div className="grid gap-6 md:grid-cols-4">
                             <div className="text-center">
                                 <div className="text-3xl font-semibold text-green-400 mb-2">
                                     {liveData.filter(d => d.risk_status === "normal").length}
@@ -369,10 +483,17 @@ export default function LiveRiskMonitoring() {
                             </div>
 
                             <div className="text-center">
+                                <div className="text-3xl font-semibold text-red-400 mb-2">
+                                    {liveData.filter(d => d.risk_status === "new_elevation").length}
+                                </div>
+                                <div className="text-sm text-slate-400">New Alerts</div>
+                            </div>
+
+                            <div className="text-center">
                                 <div className="text-3xl font-semibold text-cyan-400 mb-2">
                                     {liveData.length}
                                 </div>
-                                <div className="text-sm text-slate-400">Total Regions Monitored</div>
+                                <div className="text-sm text-slate-400">Total Regions</div>
                             </div>
                         </div>
 
