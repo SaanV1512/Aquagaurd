@@ -1,4 +1,4 @@
-from improved_model import ImprovedAquaGuardModel
+from Aquagaurd.backend.app.services.improved_model import ImprovedAquaGuardModel
 import pandas as pd
 import numpy as np
 pd.set_option("display.max_columns", None)

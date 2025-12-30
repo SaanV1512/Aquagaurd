@@ -8,7 +8,7 @@ with the backend API. Copy these patterns into your backend services.
 Author: For Frontend Integration Team
 """
 
-from improved_model import ImprovedAquaGuardModel
+from Aquagaurd.backend.app.services.improved_model import ImprovedAquaGuardModel
 import pandas as pd
 import numpy as np
 from pathlib import Path
