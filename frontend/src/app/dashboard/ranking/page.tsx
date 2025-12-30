@@ -10,6 +10,8 @@ interface RegionRisk {
   persistence_days: number;
   priority_score: number;
   inspection_priority: number;
+  risk_status: string;
+  last_updated: string;
 }
 
 const getRiskColor = (riskLevel: string) => {
@@ -36,8 +38,9 @@ export default function RankingPage() {
   useEffect(() => {
     const fetchRanking = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/ranking");
-        if (!response.ok) throw new Error("Failed to fetch ranking data");
+        // Use the live ranking endpoint instead of historical data
+        const response = await fetch("http://127.0.0.1:8000/live/ranking");
+        if (!response.ok) throw new Error("Failed to fetch live ranking data");
         const data = await response.json();
         setRanking(data);
       } catch (err) {
@@ -48,8 +51,8 @@ export default function RankingPage() {
     };
 
     fetchRanking();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchRanking, 30000);
+    // Refresh every 10 seconds for live updates
+    const interval = setInterval(fetchRanking, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -105,8 +108,14 @@ export default function RankingPage() {
             AquaGuard — Smart Water Monitoring
           </Link>
           <nav className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
+            <Link href="/" className="hover:text-white transition">
+              Home
+            </Link>
+            <Link href="/live" className="hover:text-white transition">
+              🔴 Live Monitoring
+            </Link>
             <Link href="/dashboard" className="hover:text-white transition">
-              Dashboard
+              Historical Analysis
             </Link>
             <span className="text-white font-semibold">Inspection Ranking</span>
           </nav>
@@ -122,25 +131,31 @@ export default function RankingPage() {
               </Link>
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-1 text-xs uppercase tracking-[0.2em] text-slate-200 mb-6">
-              Inspection Priority Ranking
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 px-4 py-1 text-xs uppercase tracking-[0.2em] text-cyan-400 mb-6">
+              🔴 Live Inspection Priority Ranking
             </div>
 
             <h1 className="text-4xl font-semibold leading-tight md:text-5xl mb-4">
-              Regional Inspection Priorities
+              Real-Time Regional Inspection Priorities
             </h1>
 
             <p className="text-lg text-slate-300 max-w-3xl mx-auto">
-              Regions ranked by priority score combining recent peak risk, persistence, and current conditions.
-              Higher scores indicate greater need for immediate inspection.
+              Live ranking based on current risk analysis. Regions ranked by priority score combining
+              recent peak risk, persistence, and current conditions. Updates every 10 seconds.
             </p>
           </div>
 
           {/* Priority Ranking Table */}
           <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur overflow-hidden mb-12">
             <div className="p-8 border-b border-white/10">
-              <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300">
-                Current Inspection Queue
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300">
+                  Live Inspection Queue
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  Live Updates • Last: {ranking.length > 0 ? new Date(ranking[0].last_updated).toLocaleTimeString() : 'Loading...'}
+                </div>
               </div>
             </div>
 
@@ -168,6 +183,9 @@ export default function RankingPage() {
                     </th>
                     <th className="text-left p-6 text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
                       Priority Score
+                    </th>
+                    <th className="text-left p-6 text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
+                      Status
                     </th>
                     <th className="text-left p-6 text-sm font-medium uppercase tracking-[0.2em] text-slate-300">
                       Action
@@ -236,6 +254,16 @@ export default function RankingPage() {
                             ></div>
                           </div>
                         </div>
+                      </td>
+
+                      <td className="p-6">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${region.risk_status === "elevated" ? "text-amber-400 bg-amber-500/20 border-amber-500/30" :
+                            region.risk_status === "new_elevation" ? "text-red-400 bg-red-500/20 border-red-500/30" :
+                              "text-green-400 bg-green-500/20 border-green-500/30"
+                          }`}>
+                          {region.risk_status === "normal" ? "Normal" :
+                            region.risk_status === "elevated" ? "⚠️ Elevated" : "🆕 New Alert"}
+                        </span>
                       </td>
 
                       <td className="p-6">

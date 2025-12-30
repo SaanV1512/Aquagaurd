@@ -171,6 +171,9 @@ export default function LiveRiskMonitoring() {
                         <Link href="/dashboard" className="hover:text-white transition">
                             Historical Analysis
                         </Link>
+                        <Link href="/dashboard/ranking" className="hover:text-white transition bg-fuchsia-500/20 px-3 py-1 rounded-full border border-fuchsia-500/30">
+                            📋 Inspection Ranking
+                        </Link>
                         <span className="text-white font-semibold">🔴 LIVE</span>
                         <span className="text-xs text-slate-400">Updates every 10s • Last: {lastUpdate}</span>
                     </nav>
@@ -260,7 +263,12 @@ export default function LiveRiskMonitoring() {
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur mb-12">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-2xl font-semibold">Inspection Priority Ranking</h2>
-                            <div className="text-sm text-slate-400">Sorted by priority score • Live updates</div>
+                            <div className="flex items-center gap-4">
+                                <div className="text-sm text-slate-400">Sorted by priority score • Live updates</div>
+                                <Link href="/dashboard/ranking" className="inline-flex items-center px-4 py-2 rounded-lg bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-400 hover:bg-fuchsia-500/30 hover:text-white transition-all text-sm font-medium">
+                                    📋 Full Ranking View →
+                                </Link>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -331,135 +339,193 @@ export default function LiveRiskMonitoring() {
                         </div>
                     </div>
 
-                    {/* Live Region Monitoring Grid */}
-                    <div className="grid gap-6 lg:grid-cols-2 mb-12">
-                        {liveRanking.slice(0, 4).map((regionRank, index) => {
-                            const liveRegionData = liveData.find(d => d.region === regionRank.region);
-                            if (!liveRegionData) return null;
+                    {/* Top Priority Regions - Clean 2x2 Grid */}
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-semibold mb-6">Top Priority Regions</h2>
+                        <div className="grid gap-8 md:grid-cols-2 mb-12">
+                            {liveRanking.slice(0, 4).map((regionRank, index) => {
+                                const liveRegionData = liveData.find(d => d.region === regionRank.region);
+                                if (!liveRegionData) return null;
 
-                            const regionHistory = historicalData[regionRank.region] || [];
-                            const maxConsumption = Math.max(...regionHistory.map(d => d.consumption), liveRegionData.consumption);
-                            const maxRisk = Math.max(...regionHistory.map(d => d.risk_score), liveRegionData.risk_score);
+                                const regionHistory = historicalData[regionRank.region] || [];
+                                const maxConsumption = Math.max(...regionHistory.map(d => d.consumption), liveRegionData.consumption);
+                                const maxRisk = Math.max(...regionHistory.map(d => d.risk_score), liveRegionData.risk_score);
 
-                            return (
-                                <div key={regionRank.region} className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${getPriorityColor(regionRank.inspection_priority)}`}>
-                                                {regionRank.inspection_priority}
+                                return (
+                                    <div key={regionRank.region} className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur hover:bg-white/10 transition-all duration-300 hover:scale-[1.02]">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${getPriorityColor(regionRank.inspection_priority)} shadow-lg`}>
+                                                    {regionRank.inspection_priority}
+                                                </div>
+                                                <h3 className="text-2xl font-semibold">{regionRank.region} Region</h3>
                                             </div>
-                                            <h3 className="text-2xl font-semibold">{regionRank.region} Region</h3>
-                                        </div>
-                                        <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getRiskStatusColor(liveRegionData.risk_status)}`}>
-                                            {liveRegionData.risk_status === "normal" ? "Normal" :
-                                                liveRegionData.risk_status === "elevated" ? "⚠️ Elevated Risk" : "🆕 New Risk"}
-                                        </div>
-                                    </div>
-
-                                    {/* Current Metrics */}
-                                    <div className="grid grid-cols-3 gap-4 mb-6">
-                                        <div>
-                                            <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
-                                                Risk Score
-                                            </div>
-                                            <div className={`text-3xl font-semibold ${getRiskColor(liveRegionData.risk_score)}`}>
-                                                {liveRegionData.risk_score.toFixed(1)}
-                                            </div>
-                                            <div className="text-xs text-slate-400">
-                                                {getRiskLevel(liveRegionData.risk_score)}
+                                            <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getRiskStatusColor(liveRegionData.risk_status)}`}>
+                                                {liveRegionData.risk_status === "normal" ? "Normal" :
+                                                    liveRegionData.risk_status === "elevated" ? "⚠️ Elevated Risk" : "🆕 New Risk"}
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
-                                                Daily Consumption
+                                        {/* Current Metrics */}
+                                        <div className="grid grid-cols-3 gap-6 mb-8">
+                                            <div className="text-center">
+                                                <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-3">
+                                                    Risk Score
+                                                </div>
+                                                <div className={`text-4xl font-bold ${getRiskColor(liveRegionData.risk_score)} mb-1`}>
+                                                    {liveRegionData.risk_score.toFixed(1)}
+                                                </div>
+                                                <div className="text-xs text-slate-400">
+                                                    {getRiskLevel(liveRegionData.risk_score)}
+                                                </div>
                                             </div>
-                                            <div className="text-3xl font-semibold text-cyan-400">
-                                                {liveRegionData.consumption.toLocaleString()}
-                                            </div>
-                                            <div className="text-xs text-slate-400">
-                                                Liters/day
-                                            </div>
-                                        </div>
 
-                                        <div>
-                                            <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-2">
-                                                Priority
+                                            <div className="text-center">
+                                                <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-3">
+                                                    Daily Consumption
+                                                </div>
+                                                <div className="text-4xl font-bold text-cyan-400 mb-1">
+                                                    {(liveRegionData.consumption / 1000).toFixed(1)}k
+                                                </div>
+                                                <div className="text-xs text-slate-400">
+                                                    Liters/day
+                                                </div>
                                             </div>
-                                            <div className="text-3xl font-semibold text-fuchsia-400">
-                                                {regionRank.priority_score.toFixed(1)}
-                                            </div>
-                                            <div className="text-xs text-slate-400">
-                                                Score
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Mini Charts */}
-                                    <div className="space-y-4">
-                                        {/* Risk Score Trend */}
-                                        <div>
-                                            <div className="text-sm font-medium text-slate-300 mb-2">Risk Score Trend (Last 20 readings)</div>
-                                            <div className="flex items-end gap-1 h-16 bg-slate-800/50 rounded-lg p-2">
-                                                {regionHistory.slice(-20).map((point, i) => {
-                                                    const height = maxRisk > 0 ? (point.risk_score / maxRisk) * 100 : 0;
-                                                    return (
-                                                        <div
-                                                            key={i}
-                                                            className={`flex-1 rounded-t ${getRiskBgColor(point.risk_score)}`}
-                                                            style={{ height: `${Math.max(height, 5)}%` }}
-                                                            title={`Risk: ${point.risk_score.toFixed(1)} at ${new Date(point.timestamp).toLocaleTimeString()}`}
-                                                        ></div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        {/* Flow Rate Trend */}
-                                        <div>
-                                            <div className="text-sm font-medium text-slate-300 mb-2">Daily Consumption Trend</div>
-                                            <div className="flex items-end gap-1 h-12 bg-slate-800/50 rounded-lg p-2">
-                                                {regionHistory.slice(-20).map((point, i) => {
-                                                    const height = maxConsumption > 0 ? (point.consumption / maxConsumption) * 100 : 0;
-                                                    return (
-                                                        <div
-                                                            key={i}
-                                                            className="flex-1 bg-cyan-400 rounded-t"
-                                                            style={{ height: `${Math.max(height, 5)}%` }}
-                                                            title={`Consumption: ${point.consumption.toLocaleString()}L/day at ${new Date(point.timestamp).toLocaleTimeString()}`}
-                                                        ></div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Risk Information */}
-                                    {liveRegionData.risk_status !== "normal" && liveRegionData.risk_info && (
-                                        <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-                                            <div className="text-sm font-medium text-amber-400 mb-2">Risk Analysis</div>
-                                            <div className="text-xs text-slate-300 space-y-1">
-                                                {liveRegionData.risk_info.type && <div>Pattern: {liveRegionData.risk_info.type}</div>}
-                                                {liveRegionData.risk_info.severity && <div>Severity: {liveRegionData.risk_info.severity}</div>}
-                                                {liveRegionData.risk_info.start_time && (
-                                                    <div>Started: {new Date(liveRegionData.risk_info.start_time).toLocaleString()}</div>
-                                                )}
-                                                <div className="mt-2 text-amber-300">
-                                                    <strong>Why this region is ranked #{regionRank.inspection_priority}:</strong>
-                                                    <ul className="mt-1 text-xs space-y-1">
-                                                        {regionRank.current_risk >= 70 && <li>• High current risk score ({regionRank.current_risk.toFixed(1)})</li>}
-                                                        {regionRank.persistence_days > 0 && <li>• Sustained elevated consumption ({regionRank.persistence_days} days)</li>}
-                                                        {liveRegionData.risk_status === "new_elevation" && <li>• New risk elevation detected</li>}
-                                                        {regionRank.recent_peak_risk > regionRank.current_risk + 10 && <li>• Recent high peak risk ({regionRank.recent_peak_risk.toFixed(1)})</li>}
-                                                    </ul>
+                                            <div className="text-center">
+                                                <div className="text-sm font-medium uppercase tracking-[0.3em] text-slate-300 mb-3">
+                                                    Priority Score
+                                                </div>
+                                                <div className="text-4xl font-bold text-fuchsia-400 mb-1">
+                                                    {regionRank.priority_score.toFixed(0)}
+                                                </div>
+                                                <div className="text-xs text-slate-400">
+                                                    Inspection Priority
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+
+                                        {/* Mini Charts */}
+                                        <div className="space-y-4">
+                                            {/* Risk Score Trend */}
+                                            <div>
+                                                <div className="text-sm font-medium text-slate-300 mb-2">Risk Score Trend (Last 20 readings)</div>
+                                                <div className="flex items-end gap-1 h-16 bg-slate-800/50 rounded-lg p-2">
+                                                    {regionHistory.slice(-20).map((point, i) => {
+                                                        const height = maxRisk > 0 ? (point.risk_score / maxRisk) * 100 : 0;
+                                                        return (
+                                                            <div
+                                                                key={i}
+                                                                className={`flex-1 rounded-t ${getRiskBgColor(point.risk_score)}`}
+                                                                style={{ height: `${Math.max(height, 5)}%` }}
+                                                                title={`Risk: ${point.risk_score.toFixed(1)} at ${new Date(point.timestamp).toLocaleTimeString()}`}
+                                                            ></div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Flow Rate Trend */}
+                                            <div>
+                                                <div className="text-sm font-medium text-slate-300 mb-2">Daily Consumption Trend</div>
+                                                <div className="flex items-end gap-1 h-12 bg-slate-800/50 rounded-lg p-2">
+                                                    {regionHistory.slice(-20).map((point, i) => {
+                                                        const height = maxConsumption > 0 ? (point.consumption / maxConsumption) * 100 : 0;
+                                                        return (
+                                                            <div
+                                                                key={i}
+                                                                className="flex-1 bg-cyan-400 rounded-t"
+                                                                style={{ height: `${Math.max(height, 5)}%` }}
+                                                                title={`Consumption: ${point.consumption.toLocaleString()}L/day at ${new Date(point.timestamp).toLocaleTimeString()}`}
+                                                            ></div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Risk Information */}
+                                        {liveRegionData.risk_status !== "normal" && liveRegionData.risk_info && (
+                                            <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
+                                                <div className="text-sm font-medium text-amber-400 mb-2">Risk Analysis</div>
+                                                <div className="text-xs text-slate-300 space-y-1">
+                                                    {liveRegionData.risk_info.type && <div>Pattern: {liveRegionData.risk_info.type}</div>}
+                                                    {liveRegionData.risk_info.severity && <div>Severity: {liveRegionData.risk_info.severity}</div>}
+                                                    {liveRegionData.risk_info.start_time && (
+                                                        <div>Started: {new Date(liveRegionData.risk_info.start_time).toLocaleString()}</div>
+                                                    )}
+                                                    <div className="mt-2 text-amber-300">
+                                                        <strong>Why this region is ranked #{regionRank.inspection_priority}:</strong>
+                                                        <ul className="mt-1 text-xs space-y-1">
+                                                            {regionRank.current_risk >= 70 && <li>• High current risk score ({regionRank.current_risk.toFixed(1)})</li>}
+                                                            {regionRank.persistence_days > 0 && <li>• Sustained elevated consumption ({regionRank.persistence_days} days)</li>}
+                                                            {liveRegionData.risk_status === "new_elevation" && <li>• New risk elevation detected</li>}
+                                                            {regionRank.recent_peak_risk > regionRank.current_risk + 10 && <li>• Recent high peak risk ({regionRank.recent_peak_risk.toFixed(1)})</li>}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
+
+                    {/* Additional Regions Summary */}
+                    {liveRanking.length > 4 && (
+                        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur mb-12">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-semibold">Additional Regions</h2>
+                                <div className="text-sm text-slate-400">Lower priority regions</div>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {liveRanking.slice(4).map((regionRank, index) => {
+                                    const liveRegionData = liveData.find(d => d.region === regionRank.region);
+                                    if (!liveRegionData) return null;
+
+                                    return (
+                                        <div key={regionRank.region} className="rounded-2xl border border-white/5 bg-white/5 p-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${getPriorityColor(regionRank.inspection_priority)}`}>
+                                                        {regionRank.inspection_priority}
+                                                    </div>
+                                                    <h3 className="text-lg font-semibold">{regionRank.region}</h3>
+                                                </div>
+                                                <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getRiskStatusColor(liveRegionData.risk_status)}`}>
+                                                    {liveRegionData.risk_status === "normal" ? "Normal" :
+                                                        liveRegionData.risk_status === "elevated" ? "⚠️ Elevated" : "🆕 New Alert"}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-4 text-center">
+                                                <div>
+                                                    <div className="text-sm text-slate-400">Risk Score</div>
+                                                    <div className={`text-xl font-semibold ${getRiskColor(liveRegionData.risk_score)}`}>
+                                                        {liveRegionData.risk_score.toFixed(1)}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm text-slate-400">Consumption</div>
+                                                    <div className="text-xl font-semibold text-cyan-400">
+                                                        {(liveRegionData.consumption / 1000).toFixed(1)}k
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm text-slate-400">Priority</div>
+                                                    <div className="text-xl font-semibold text-fuchsia-400">
+                                                        {regionRank.priority_score.toFixed(0)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* System Status */}
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">

@@ -20,6 +20,9 @@ class WaterDataSimulator:
         # Track elevated risk periods per region (not "leaks")
         self.elevated_risk_periods = {}
         self.last_risk_check = {}
+        # Store previous values for smoother transitions
+        self.previous_risk_scores = {}
+        self.previous_consumption = {}
         # Initialize some regions with elevated risk for demo
         self._initialize_demo_risks()
         
@@ -52,23 +55,25 @@ class WaterDataSimulator:
             self.last_risk_check[region] = now - timedelta(hours=random.randint(1, 6))
         
     def generate_normal_consumption(self, region: str, timestamp: datetime) -> float:
-        """Generate normal consumption with daily patterns (L/day, but shown as current rate)"""
+        """Generate normal consumption with realistic daily patterns and variations"""
         base = self.base_consumption[region]
         
-        # Daily pattern (higher during day, lower at night)
-        hour_factor = 0.6 + 0.4 * abs(math.sin((timestamp.hour - 6) * math.pi / 12))
+        # Daily pattern (higher during day, lower at night) - more gradual
+        hour_angle = (timestamp.hour - 6) * math.pi / 12
+        hour_factor = 0.7 + 0.3 * (math.sin(hour_angle) + 1) / 2  # Smoother curve
         
         # Weekly pattern (higher on weekdays)
-        weekday_factor = 1.1 if timestamp.weekday() < 5 else 0.9
+        weekday_factor = 1.05 if timestamp.weekday() < 5 else 0.95
         
-        # Add some realistic variation for real-time monitoring
-        time_variation = 1.0 + 0.05 * math.sin(timestamp.second * math.pi / 30)
+        # Add realistic time-based variation (smoother changes)
+        minute_variation = 1.0 + 0.02 * math.sin(timestamp.minute * math.pi / 30)
+        second_variation = 1.0 + 0.01 * math.sin(timestamp.second * math.pi / 30)
         
-        # Random noise
-        noise = random.uniform(0.95, 1.05)  # Simple random variation
+        # Random noise (smaller for more realistic data)
+        noise = random.uniform(0.98, 1.02)  # Only 2% variation
         
-        result = base * hour_factor * weekday_factor * time_variation * noise
-        return max(result, base * 0.3)  # Ensure minimum consumption
+        result = base * hour_factor * weekday_factor * minute_variation * second_variation * noise
+        return max(result, base * 0.4)  # Ensure reasonable minimum
     
     def simulate_elevated_risk(self, region: str, risk_type: str = "gradual") -> dict:
         """Simulate different types of elevated risk scenarios"""
@@ -134,20 +139,33 @@ class WaterDataSimulator:
                 else:
                     consumption = normal_consumption * risk_period.get("multiplier", 1.0)
                 
-                # Calculate risk score based on deviation
+                # Calculate risk score based on deviation with smoother transitions
                 deviation = (consumption - normal_consumption) / normal_consumption
+                base_risk = 40  # Base risk for elevated periods
+                
                 if risk_period["severity"] == "high":
-                    risk_score = min(85, 60 + deviation * 100)
+                    # Add some randomness for realistic variation
+                    risk_variation = random.uniform(-5, 5)
+                    risk_score = min(85, base_risk + 35 + deviation * 50 + risk_variation)
                 elif risk_period["severity"] == "medium":
-                    risk_score = min(70, 45 + deviation * 80)
+                    risk_variation = random.uniform(-3, 3)
+                    risk_score = min(70, base_risk + 15 + deviation * 40 + risk_variation)
                 else:
-                    risk_score = min(55, 30 + deviation * 60)
+                    risk_variation = random.uniform(-2, 2)
+                    risk_score = min(55, base_risk + 5 + deviation * 30 + risk_variation)
+                
+                # Ensure risk score doesn't drop too low during elevated periods
+                risk_score = max(risk_score, 45 if risk_period["severity"] == "high" else 
+                               35 if risk_period["severity"] == "medium" else 25)
                 
                 risk_status = "elevated"
         else:
             consumption = normal_consumption
             risk_status = "normal"
-            risk_score = random.uniform(10, 40)  # Normal range
+            # Add realistic variation to normal risk scores
+            base_normal_risk = random.uniform(15, 35)
+            time_variation = 5 * math.sin(now.minute * math.pi / 30)  # Gradual changes
+            risk_score = max(10, min(45, base_normal_risk + time_variation))
             
             # Check if we should trigger new elevated risk (higher probability for demo)
             hours_since_check = (now - self.last_risk_check[region]).total_seconds() / 3600
@@ -168,13 +186,34 @@ class WaterDataSimulator:
                     }
                     risk_status = "new_elevation"
         
+        # Smooth transitions using previous values
+        if region in self.previous_risk_scores:
+            # Smooth transition (80% previous + 20% new)
+            risk_score = 0.8 * self.previous_risk_scores[region] + 0.2 * risk_score
+        
+        if region in self.previous_consumption:
+            # Smooth consumption changes
+            consumption = 0.9 * self.previous_consumption[region] + 0.1 * consumption
+        
+        # Store current values for next iteration
+        self.previous_risk_scores[region] = risk_score
+        self.previous_consumption[region] = consumption
+        
+        # Prepare risk_info with serializable data
+        risk_info = self.elevated_risk_periods.get(region, {})
+        if risk_info and "start_time" in risk_info:
+            risk_info_serializable = risk_info.copy()
+            risk_info_serializable["start_time"] = risk_info["start_time"].isoformat()
+        else:
+            risk_info_serializable = risk_info
+        
         return {
             "region": region,
             "timestamp": now.isoformat(),
             "consumption": round(consumption, 2),
             "risk_status": risk_status,
             "risk_score": round(risk_score, 1),
-            "risk_info": self.elevated_risk_periods.get(region, {})
+            "risk_info": risk_info_serializable
         }
     
     def get_all_regions_data(self) -> list:
