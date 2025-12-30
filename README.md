@@ -1,6 +1,7 @@
 # 🚰 AquaGuard - Smart Water Supply Risk Monitoring System
 
 AquaGuard is an **ML-based early-warning and prioritization system** for identifying abnormal water consumption patterns in urban water supply networks. The system learns normal consumption behavior from historical smart-meter data and flags statistically abnormal deviations to help utilities prioritize inspection and maintenance efforts.
+Check out the [LinkedIn post here](https://www.linkedin.com/posts/saanvi-choudhary-8a2985347_buildwithkiroathackxios2k25-hackxios-machinelearning-activity-7411827374746566656-GF63?utm_source=social_share_send&utm_medium=member_desktop_web&rcm=ACoAAFbRyroBuJv7u2sEAljRXdKOsHCaXRMPZ6o)
 
 ## 🎯 **What AquaGuard Does**
 
