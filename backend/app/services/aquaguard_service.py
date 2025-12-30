@@ -41,6 +41,7 @@ class AquaGuardService:
 
         current_risk = results["combined_risk_score"].iloc[-1]
         recent_peak = results.tail(14)["combined_risk_score"].quantile(0.9)
+        average_risk_7d = results.tail(7)["combined_risk_score"].mean()
         recent_anomalies = int(results.tail(30)["is_anomaly_ml"].sum())
 
         last_7 = results.tail(7)["combined_risk_score"].mean()
@@ -50,8 +51,10 @@ class AquaGuardService:
             "region": region,
             "current_risk_score": round(current_risk, 2),
             "recent_peak_risk": round(recent_peak, 2),
+            "average_risk_7d": round(average_risk_7d, 2),
             "recent_anomalies_30d": recent_anomalies,
             "risk_trend": "increasing" if last_7 > prev_7 else "decreasing",
+            "last_updated": results["date"].iloc[-1].isoformat()
         }
 
     def get_regional_ranking(self):
@@ -64,6 +67,15 @@ class AquaGuardService:
 
             current = results["combined_risk_score"].iloc[-1]
             peak = results.tail(14)["combined_risk_score"].quantile(0.9)
+            
+            # Calculate persistence days
+            persistence_days = (
+                (results["combined_risk_score"] >= 50)
+                .rolling(window=3)
+                .mean()
+                .iloc[-1] * 7
+            )
+            persistence_days = int(round(persistence_days))
 
             if peak >= 70:
                 risk_level = "High"
@@ -72,15 +84,20 @@ class AquaGuardService:
             else:
                 risk_level = "Low"
 
+            # Priority score calculation (matching Test_new_model.py)
+            persistence_days_scaled = min(persistence_days, 7) / 7 * 100
             priority = (
                 0.5 * peak +
-                0.3 * min(7, (results["combined_risk_score"] >= 50).sum()) / 7 * 100 +
+                0.3 * persistence_days_scaled +
                 0.2 * current
             )
 
             ranking.append({
                 "region": region,
+                "current_risk": round(current, 2),
+                "recent_peak_risk": round(peak, 2),
                 "risk_level": risk_level,
+                "persistence_days": persistence_days,
                 "priority_score": round(priority, 2),
             })
 

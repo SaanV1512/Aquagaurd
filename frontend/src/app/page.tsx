@@ -4,26 +4,26 @@ import Link from "next/link";
 
 const featureHighlights = [
   {
-    title: "One-click workflows",
+    title: "Risk-Based Prioritization",
     description:
-      "Launch campaigns, blogs, newsroom recaps, and YouTube repurposing from a single canvas.",
+      "Advanced ML algorithms analyze consumption patterns to rank regions by inspection priority, not false leak alerts.",
   },
   {
-    title: "Context-aware AI",
+    title: "Pattern Recognition",
     description:
-      "Upcoming: Train on your brand voice, pull real-time references, and keep every asset on-message.",
+      "Prophet forecasting with seasonality modeling captures normal behavior and identifies statistically abnormal deviations.",
   },
   {
-    title: "Infinite scale",
+    title: "Persistence Analysis",
     description:
-      "Upcoming: Collaborate across teams with version history, approval flows, and shareable AI briefs.",
+      "Distinguishes between single-day spikes and sustained abnormal behavior to reduce false positives and focus on real issues.",
   },
 ];
 
 const stats = [
-  { label: "Teams onboarded (not really)", value: "230+" },
-  { label: "Campaigns launched", value: "12k" },
-  { label: "Avg. time saved", value: "18 hrs" },
+  { label: "Regions Monitored", value: "5" },
+  { label: "ML Anomaly Detection", value: "10.6%" },
+  { label: "Accuracy Improvement", value: "+4.7%" },
 ];
 
 export default function LandingPage() {
@@ -47,11 +47,11 @@ export default function LandingPage() {
             <Link href="#features" className="hover:text-white transition">
               Features
             </Link>
-            <Link href="#automation" className="hover:text-white transition">
-              Monitoring
-            </Link>
             <Link href="/dashboard" className="hover:text-white transition">
-              Dashboards
+              Dashboard
+            </Link>
+            <Link href="/dashboard/ranking" className="hover:text-white transition">
+              Ranking
             </Link>
           </nav>
         </header>
@@ -74,14 +74,21 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-10 flex flex-wrap items-center gap-4">
-                <Link href="/dashboard">
-                  <button className="rounded-full bg-white px-6 py-3 font-semibold text-slate-900">
-                    View Dashboard
+                <Link href="/live">
+                  <button className="rounded-full bg-white px-6 py-3 font-semibold text-slate-900 hover:bg-slate-100 transition">
+                    🔴 Live Risk Monitoring
                   </button>
                 </Link>
-                <button className="rounded-full border border-white/30 px-6 py-3 font-semibold">
-                  Learn More
-                </button>
+                <Link href="/dashboard">
+                  <button className="rounded-full border border-white/30 px-6 py-3 font-semibold hover:bg-white/10 transition">
+                    Historical Analysis
+                  </button>
+                </Link>
+                <Link href="/dashboard/ranking">
+                  <button className="rounded-full border border-white/30 px-6 py-3 font-semibold hover:bg-white/10 transition">
+                    Inspection Ranking
+                  </button>
+                </Link>
               </div>
 
               <div className="mt-12 grid gap-6 sm:grid-cols-3">
