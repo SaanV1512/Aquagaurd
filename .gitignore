@@ -79,7 +79,7 @@ public
 # Temporary folders
 tmp/
 temp/
-
+__pycache__/
 # Editor directories and files
 .vscode/
 .idea/
